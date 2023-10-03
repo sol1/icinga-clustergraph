@@ -17,7 +17,7 @@ This module provides visualization of Icinga 2 cluster zones and endpoints in a 
 
 1. Clone the `clustergraph` module to the `modules` directory of Icinga Web 2.
 ```
-git clone git@github.com:sol1/icinga-clustergraph.git /usr/share/icingaweb2/modules/clustergraph
+git clone https://github.com/sol1/icinga-clustergraph.git /usr/share/icingaweb2/modules/clustergraph
 ```
 
 
