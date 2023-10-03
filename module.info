@@ -1,0 +1,4 @@
+Module: clustergraph
+Version: "1.0.0"
+Description: "Visual representation of Icinga Clusters"
+
