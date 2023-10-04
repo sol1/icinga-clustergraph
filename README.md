@@ -2,6 +2,10 @@
 
 This module provides visualization of Icinga 2 cluster zones and endpoints in a graphical format.
 
+This is useful to highlight how the cluster goes together, and which endpoints report to which parents in a graphical way.
+
+One of the next goals is to allow the graph to highlight where there are multiple parents of a zone and whether all the children are properly configured. 
+
 ## Features
 
 - API integration with Icinga 2.
