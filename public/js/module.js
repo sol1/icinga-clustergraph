@@ -4,7 +4,7 @@
     var Clustergraph = function (module) {
         this.module = module;
         this.initialize();
-        this.module.icinga.logger.error('Clustergraph module loaded');
+        this.module.icinga.logger.debug('Clustergraph module loaded');
     };
 
     Clustergraph.prototype = {

@@ -6,7 +6,11 @@ namespace Icinga\Module\Clustergraph\Controllers;
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
+use Icinga\Application\Icinga;
 use Icinga\Application\Logger;
+use Icinga\Module\Clustergraph\Common\ApiZones;
+use Icinga\Module\Clustergraph\Common\IcingaDbZones;
+use Icinga\Module\Clustergraph\Common\IdoZones;
 use Icinga\Web\Controller;
 
 class IndexController extends Controller
@@ -15,15 +19,15 @@ class IndexController extends Controller
     {
         $config = \Icinga\Application\Config::module('clustergraph');
 
-        $ICINGA_API_ENDPOINT = $config->get('api', 'endpoint');
-        $ICINGA_API_USER = $config->get('api', 'user');
+        $ICINGA_API_ENDPOINT = $config->get('api', 'host');
+        $ICINGA_API_USER = $config->get('api', 'username');
         $ICINGA_API_PASSWORD = $config->get('api', 'password');
-        $SSL_VERIFICATION = $config->get('api', 'verify') === '1';
 
 
         if (!$ICINGA_API_ENDPOINT || !$ICINGA_API_USER || !$ICINGA_API_PASSWORD) {
             throw new \Exception("Please configure the module in module settings.");
         }
+
         $this->view->tabs = $this->getTabs();
 
     }
@@ -40,10 +44,9 @@ class IndexController extends Controller
         // Configuration
 
         $config = \Icinga\Application\Config::module('clustergraph');
-        $ICINGA_API_ENDPOINT = $config->get('api', 'endpoint');
-        $ICINGA_API_USER = $config->get('api', 'user');
+        $ICINGA_API_ENDPOINT = $config->get('api', 'host');
+        $ICINGA_API_USER = $config->get('api', 'username');
         $ICINGA_API_PASSWORD = $config->get('api', 'password');
-        $SSL_VERIFICATION = $config->get('api', 'verify') === '1';
 
 
         if (!$ICINGA_API_ENDPOINT || !$ICINGA_API_USER || !$ICINGA_API_PASSWORD) {
@@ -51,22 +54,8 @@ class IndexController extends Controller
         }
 
 
-        // Fetch data from Icinga2 API using cURL
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $ICINGA_API_ENDPOINT . '/objects/zones');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_USERPWD, $ICINGA_API_USER . ':' . $ICINGA_API_PASSWORD);
-        curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-
-        if (!$SSL_VERIFICATION) {
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        }
-
-        $output = curl_exec($ch);
-        curl_close($ch);
-        Logger::error(serialize($output));
-        $zones = json_decode($output)->results;
+        $api = new ApiZones();
+        $zones = $api->sendCommand();
 
         if (!is_array($zones)) {
             throw new \Exception("Failed to fetch or decode data from the Icinga2 API.");
@@ -74,17 +63,17 @@ class IndexController extends Controller
 
         $nodes = [];
         foreach ($zones as $zone) {
-            $zoneName = $zone->name;
+            $zoneName = $zone['name'];
             $nodes[$zoneName] = [
                 'name' => $zoneName,
                 'children' => [],
-                'endpoints' => $zone->attrs->endpoints ?? []
+                'endpoints' => $zone['attrs']['endpoints'] ?? []
             ];
         }
 
         foreach ($zones as $zone) {
-            $zoneName = $zone->name;
-            $parentName = $zone->attrs->parent;
+            $zoneName = $zone['name'];
+            $parentName = $zone['attrs']['parent'];
             if ($parentName && isset($nodes[$parentName])) {
                 $nodes[$parentName]['children'][] = &$nodes[$zoneName];
             }
@@ -93,8 +82,8 @@ class IndexController extends Controller
         // Find root node
         $rootZoneName = '';
         foreach ($zones as $zone) {
-            if (!$zone->attrs->parent) {
-                $rootZoneName = $zone->name;
+            if (!$zone['attrs']['parent'] && !$zone['attrs']['global']) {
+                $rootZoneName = $zone['name'];
                 break;
             }
         }

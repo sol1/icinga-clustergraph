@@ -23,7 +23,11 @@ class ModuleconfigForm extends ConfigForm
 
     public function createElements(array $formData)
     {
-        $this->addElement('text', 'api_user', [
+        $this->addElement('hidden', 'api_transport', [
+            'value'=>'api'
+        ]);
+
+        $this->addElement('text', 'api_username', [
             'label' => 'API User',
             'description' => 'Add a user in api-users.conf with these permissions:  permissions = [ "objects/query/Zone", "objects/query/Endpoint" ]',
             'required' => true,
@@ -36,17 +40,18 @@ class ModuleconfigForm extends ConfigForm
             'renderPassword' => true
         ]);
 
-        $this->addElement('text', 'api_endpoint', [
+        $this->addElement('text', 'api_host', [
             'label' => 'API Endpoint',
-            'description' => 'Example: https://myicingamaster.mydomain:5665/v1',
+            'description' => 'Your hostname e.g localhost',
+            'required' => true,
+        ]);
+        $this->addElement('text', 'api_port', [
+            'label' => 'API Port',
+            'description' => 'e.g. 5665',
+            'value' => '5665',
             'required' => true,
         ]);
 
-        $this->addElement('checkbox', 'api_verify', [
-            'label' => 'Enable SSL Verification',
-            'description' => 'If checked, SSL verification will be enabled.',
-            'value' => 0,
-        ]);
     }
 
     public function onRequest()
