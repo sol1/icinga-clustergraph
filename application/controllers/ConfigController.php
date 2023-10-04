@@ -2,8 +2,9 @@
 
 namespace Icinga\Module\Clustergraph\Controllers;
 
+use Icinga\Application\Config;
+use Icinga\Module\Clustergraph\Forms\ModuleconfigForm;
 use Icinga\Web\Controller;
-use Icinga\Module\Clustergraph\Forms\Config\GeneralConfigForm;
 
 class ConfigController extends Controller
 {
@@ -12,19 +13,17 @@ class ConfigController extends Controller
      */
 
 
-public function indexAction()
-{
-    $form = new GeneralConfigForm();
-    $form->setIniConfig($this->Config());
-    $form->handleRequest();
+    public function indexAction()
+    {
+        $form = (new ModuleconfigForm())
+            ->setIniConfig(Config::module('clustergraph', "config"));
 
-    if ($form->isSubmitted() && $form->isValid()) {
-        $this->redirectNow('clustergraph/config');
+        $form->handleRequest();
+
+        $this->view->tabs = $this->Module()->getConfigTabs()->activate('config');
+
+        $this->view->form = $form;
     }
-
-    $this->view->form = $form;
-    $this->view->tabs = $this->Module()->getConfigTabs()->activate('config');
-}
 
 
 }

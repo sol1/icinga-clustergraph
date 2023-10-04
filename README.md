@@ -20,17 +20,16 @@ One of the next goals is to allow the graph to highlight where there are multipl
 ## Installation
 
 1. Clone the `clustergraph` module to the `modules` directory of Icinga Web 2.
+
 ```
 git clone https://github.com/sol1/icinga-clustergraph.git /usr/share/icingaweb2/modules/clustergraph
 ```
-
 
 2. Enable the module via the Icinga Web 2 web interface or using the CLI:
 
 ```
 icingacli module enable clustergraph
 ```
-
 
 ## Configuration
 
@@ -40,11 +39,13 @@ icingacli module enable clustergraph
 
 ## Usage
 
-Once configured, navigate to the ClusterGraph section in Icinga Web 2 to view the graphical representation of Icinga 2 cluster zones and endpoints.
+Once configured, navigate to the ClusterGraph section in Icinga Web 2 to view the graphical representation of Icinga 2
+cluster zones and endpoints.
 
 ## Contributing
 
-If you'd like to contribute to the development of this module, please submit pull requests or issues to https://github.com/sol1/icinga-clustergraph.
+If you'd like to contribute to the development of this module, please submit pull requests or issues
+to https://github.com/sol1/icinga-clustergraph.
 
 ## License
 
