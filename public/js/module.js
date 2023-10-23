@@ -85,9 +85,8 @@
 
 
         onRenderedContainer: function (event) {
-            // in module configuration we don't have a map, so return peacefully
 
-            fetch("/icingaweb2/clustergraph/index/data")
+	    fetch(window.IcingaBasePath + "/clustergraph/index/data")
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('clustergraph-container').append(this.chart(data));
