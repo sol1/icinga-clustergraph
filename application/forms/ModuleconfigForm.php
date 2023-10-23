@@ -52,13 +52,6 @@ class ModuleconfigForm extends ConfigForm
             'required' => true,
         ]);
 
-	$this->addElement('text', 'basePath', [
-	    'label'       => 'Base Path',
-	    'description' => 'Enter the base path for the Icinga application. Default is "/icingaweb2".',
-	    'value'       => '/icingaweb2', // default value
-	    'required'    => true
-	]);
-
     }
 
     public function onRequest()
