@@ -12,7 +12,7 @@ use Icinga\Exception\Json\JsonDecodeException;
 use Icinga\Util\Json;
 
 
-class ApiZones
+class IcingaApi
 {
 
     protected function getUriFor($endpoint,$transport)

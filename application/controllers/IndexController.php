@@ -8,7 +8,7 @@ ini_set('display_errors', '1');
 
 use Icinga\Application\Icinga;
 use Icinga\Application\Logger;
-use Icinga\Module\Clustergraph\Common\ApiZones;
+use Icinga\Module\Clustergraph\Common\IcingaApi;
 use Icinga\Module\Clustergraph\Common\IcingaDbZones;
 use Icinga\Module\Clustergraph\Common\IdoZones;
 use Icinga\Web\Controller;
@@ -54,8 +54,9 @@ class IndexController extends Controller
         }
 
 
-        $api = new ApiZones();
-        $zones = $api->sendCommand();
+        $api = new IcingaApi();
+        $zones = $api->sendCommand('GET', 'objects/zones');
+        $hosts = $api->sendCommand('GET', 'objects/hosts');
 
         if (!is_array($zones)) {
             throw new \Exception("Failed to fetch or decode data from the Icinga2 API.");
@@ -64,12 +65,21 @@ class IndexController extends Controller
         $nodes = [];
         foreach ($zones as $zone) {
             $zoneName = $zone['name'];
+            $endpoints = [];
+            foreach ($zone['attrs']['endpoints'] ?? [] as $endpoint) {
+                foreach ($hosts as $host) {
+                    if (($endpoint == $host['name']) || ($endpoint == $host['display_name'])) {
+                        $endpoints[] = ['name' => $endpoint, 'status' => $host['status']];
+                    }
+                }
+            }
             $nodes[$zoneName] = [
                 'name' => $zoneName,
                 'children' => [],
-                'endpoints' => $zone['attrs']['endpoints'] ?? []
+                'endpoints' => $endpoints
             ];
         }
+
 
         foreach ($zones as $zone) {
             $zoneName = $zone['name'];
