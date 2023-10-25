@@ -82,7 +82,7 @@
                 if (d.data.endpoints && d.data.endpoints.length) {
                     d3.select(this)
                         .selectAll("tspan")
-                        .data(d.data.endpoints)
+                        .data(d.data.endpoints.name)
                         .enter()
                         .append("tspan")
                         .attr("x", d => d.children ? -6 : 6)
