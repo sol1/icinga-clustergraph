@@ -89,10 +89,8 @@
                         .attr("dy", (d, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
                         .attr("fill", d => {
                             return d.last_check <= 0 ? "#77aaff" :  // Pending
-                                d.state === 0 ? "#44bb77" : // OK
-                                d.state === 1 ? "#44bb77" : // Warning (host is up if warning)
-                                d.state === 2 ? "#ff5566" : // Critical
-                                d.state === 3 ? "#44bb77" : // Unknown (host is down if unknown)
+                                d.state === 0 ? "#44bb77" : // Up
+                                d.state === 1 ? "#ff5566" : // Down
                                 "#dbdbdb"; // default white color
                         })
                         .text(d => d.name);
