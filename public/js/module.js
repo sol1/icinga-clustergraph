@@ -82,13 +82,13 @@
                 if (d.data.endpoints && d.data.endpoints.length) {
                     d3.select(this)
                         .selectAll("tspan")
-                        .data(d.data.endpoints.name)
+                        .data(d.data.endpoints)
                         .enter()
                         .append("tspan")
                         .attr("x", d => d.children ? -6 : 6)
                         .attr("dy", (d, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
                         .attr("fill", "#dbdbdb") // Modify as needed for different colors
-                        .text(d => d);
+                        .text(d => d.name);
                 }
             });
 
