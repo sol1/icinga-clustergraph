@@ -18,7 +18,7 @@
             const nodeWidth = 55;  // dx value
             const width = 1720;
             const nodeHeight = width / (root.height + 1.2);  // dy value
-                        const padding = 150;
+            const padding = 80;
             const tree = d3.tree().nodeSize([nodeWidth, nodeHeight]);
             root.sort((a, b) => d3.ascending(a.data.name, b.data.name));
             tree(root);
@@ -66,20 +66,32 @@
                 .attr("dy", "0.30em")
                 .attr("x", d => d.children ? -8 : 8)
                 .attr("text-anchor", d => d.children ? "end" : "start")
-                .attr("fill", d => (d.data.endpoints && d.data.endpoints.length > 0) ? "#ffffff" : "#aa44ff")
+                .attr("fill", d => (d.data.endpoints && d.data.endpoints.length > 0) ? "#ffffff" : "#ff33ff")
                                 .attr("font-weight", "bold")
                 .text(d => "zone: " + d.data.name);
 
             // Append endpoint text below the zone name
-            node.append("text")
+            let endpointNode = node.append("text")
                 .attr("dy", "1.45em")
                 .attr("x", d => d.children ? -6 : 6)
                 .attr("text-anchor", d => d.children ? "end" : "start")
-                .attr("fill", "#dbdbdb")
-                .text(d => {
-                    const endpointText = d.data.endpoints ? d.data.endpoints.join(", ") : "";
-                    return endpointText;
-                });
+                .attr("fill", "#dbdbdb");
+
+            endpointNode.each(function(d, i) {
+                // If there are endpoints, bind them to the tspan elements
+                if (d.data.endpoints && d.data.endpoints.length) {
+                    d3.select(this)
+                        .selectAll("tspan")
+                        .data(d.data.endpoints)
+                        .enter()
+                        .append("tspan")
+                        .attr("x", d => d.children ? -6 : 6)
+                        .attr("dy", (d, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
+                        .attr("fill", "#dbdbdb") // Modify as needed for different colors
+                        .text(d => d);
+                }
+            });
+
 
             return svg.node();
         },
