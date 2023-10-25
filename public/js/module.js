@@ -85,8 +85,8 @@
                         .data(nodeData.data.endpoints)
                         .enter()
                         .append("tspan")
-                        .attr("x", endpointData => endpointData.children ? -8 : 8)
-                        .attr("dy", (d, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
+                        .attr("x", nodeData => nodeData.children ? -8 : 8)
+                        .attr("dy", (endpointData, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
                         .attr("fill", endpointData => {
                             return endpointData.last_check <= 0 ? "#77aaff" :  // Pending
                                 endpointData.state === 0 ? "#44bb77" : // Up
