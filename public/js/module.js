@@ -73,7 +73,7 @@
             // Append endpoint text below the zone name
             let endpointNode = node.append("text")
                 .attr("dy", "1.45em")
-                .attr("x", d => d.children ? -6 : 6)
+                .attr("x", d => d.children ? -8 : 8)
                 .attr("text-anchor", d => d.children ? "end" : "start")
                 .attr("fill", "#dbdbdb");
 
@@ -85,7 +85,7 @@
                         .data(d.data.endpoints)
                         .enter()
                         .append("tspan")
-                        .attr("x", d => d.children ? -6 : 6)
+                        .attr("x", d => d.children ? -8 : 8)
                         .attr("dy", (d, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
                         .attr("fill", d => {
                             return d.last_check <= 0 ? "#77aaff" :  // Pending
