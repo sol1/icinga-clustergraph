@@ -77,23 +77,23 @@
                 .attr("text-anchor", d => d.children ? "end" : "start")
                 .attr("fill", "#dbdbdb");
 
-            endpointNode.each(function (d, i) {
+            endpointNode.each(function (nodeData, i) {
                 // If there are endpoints, bind them to the tspan elements
-                if (d.data.endpoints && d.data.endpoints.length) {
+                if (nodeData.data.endpoints && nodeData.data.endpoints.length) {
                     d3.select(this)
                         .selectAll("tspan")
-                        .data(d.data.endpoints)
+                        .data(nodeData.data.endpoints)
                         .enter()
                         .append("tspan")
-                        .attr("x", d => d.children ? -8 : 8)
+                        .attr("x", endpointData => endpointData.children ? -8 : 8)
                         .attr("dy", (d, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
-                        .attr("fill", d => {
-                            return d.last_check <= 0 ? "#77aaff" :  // Pending
-                                d.state === 0 ? "#44bb77" : // Up
-                                d.state === 1 ? "#ff5566" : // Down
+                        .attr("fill", endpointData => {
+                            return endpointData.last_check <= 0 ? "#77aaff" :  // Pending
+                                endpointData.state === 0 ? "#44bb77" : // Up
+                                endpointData.state === 1 ? "#ff5566" : // Down
                                 "#dbdbdb"; // default white color
                         })
-                        .text(d => d.name);
+                        .text(endpointData => endpointData.name);
                 }
             });
 
