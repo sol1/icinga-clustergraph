@@ -67,11 +67,14 @@ class IndexController extends Controller
             $zoneName = $zone['name'];
             $endpoints = [];
             foreach ($zone['attrs']['endpoints'] ?? [] as $endpoint) {
+                $endpointData = ['name' => $endpoint];
                 foreach ($hosts as $host) {
                     if (($endpoint == $host['name']) || ($endpoint == $host['attrs']['display_name'])) {
-                        $endpoints[] = ['name' => $endpoint, 'state' => $host['attrs']['state']];
+                        $endpointData['state'] = $host['attrs']['state'];
+                        break;
                     }
                 }
+                $endpoints[] = $endpointData;
             }
             $nodes[$zoneName] = [
                 'name' => $zoneName,
