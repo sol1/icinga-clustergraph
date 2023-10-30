@@ -15,10 +15,11 @@
 
         chart: function (data) {
             const root = d3.hierarchy(data);
-            const dx = 40;
-            const width = 940;
-            const dy = width / (root.height + 1);
-            const tree = d3.tree().nodeSize([dx, dy]);
+            const nodeWidth = 55; // dx value
+            const width = 1720;
+            const nodeHeight = width / (root.height + 1.2); // dy value
+            const padding = 80;
+            const tree = d3.tree().nodeSize([nodeWidth, nodeHeight]);
             root.sort((a, b) => d3.ascending(a.data.name, b.data.name));
             tree(root);
 
@@ -29,19 +30,19 @@
                 if (d.x < x0) x0 = d.x;
             });
 
-            const height = x1 - x0 + dx * 2;
+            const height = x1 - x0 + nodeWidth * 2;
 
             const svg = d3.create("svg")
                 .attr("width", width)
                 .attr("height", height)
-                .attr("viewBox", [-dy / 3, x0 - dx, width, height])
-                .attr("style", "max-width: 100%; height: auto; font: 10px sans-serif;");
+                .attr("viewBox", [-nodeHeight / 3 - padding, x0 - nodeWidth + (padding * 1.8), width + padding + padding, height])
+                .attr("style", "max-width: 100%; height: auto; font: 18px sans-serif;");
 
             const link = svg.append("g")
                 .attr("fill", "none")
-                .attr("stroke", "#555")
+                .attr("stroke", "#00c3ed")
                 .attr("stroke-opacity", 0.4)
-                .attr("stroke-width", 1.5)
+                .attr("stroke-width", 2.5)
                 .selectAll()
                 .data(root.links())
                 .join("path")
@@ -62,23 +63,40 @@
                 .attr("r", 2);
 
             node.append("text")
-                .attr("dy", "0.5em")
+                .attr("dy", "0.30em")
                 .attr("x", d => d.children ? -8 : 8)
                 .attr("text-anchor", d => d.children ? "end" : "start")
-                .text(d => d.data.name)
-                .clone(true).lower()
-                .attr("stroke", "white");
+                .attr("fill", d => (d.data.endpoints && d.data.endpoints.length > 0) ? "#ffffff" : "#ff33ff")
+                .attr("font-weight", "bold")
+                .text(d => "zone: " + d.data.name);
 
             // Append endpoint text below the zone name
-            node.append("text")
-                .attr("dy", "2em")
-                .attr("x", d => d.children ? -6 : 6)
-                .attr("text-anchor", "middle")
-                .attr("fill", "#ffffff")
-                .text(d => {
-                    const endpointText = d.data.endpoints ? d.data.endpoints.join(", ") : "";
-                    return endpointText;
-                });
+            let endpointNode = node.append("text")
+                .attr("dy", "1.45em")
+                .attr("x", d => d.children ? -8 : 8)
+                .attr("text-anchor", d => d.children ? "end" : "start")
+                .attr("fill", "#dbdbdb");
+
+            endpointNode.each(function (nodeData, i) {
+                // If there are endpoints, bind them to the tspan elements
+                if (nodeData.data.endpoints && nodeData.data.endpoints.length) {
+                    d3.select(this)
+                        .selectAll("tspan")
+                        .data(nodeData.data.endpoints)
+                        .enter()
+                        .append("tspan")
+                        .attr("x", nodeData => nodeData.children ? -8 : 8)
+                        .attr("dy", (endpointData, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
+                        .attr("fill", endpointData => {
+                            return endpointData.last_check <= 0 ? "#77aaff" :  // Pending
+                                endpointData.state === 0 ? "#44bb77" : // Up
+                                endpointData.state === 1 ? "#ff5566" : // Down
+                                "#dbdbdb"; // default white color
+                        })
+                        .text(endpointData => endpointData.name);
+                }
+            });
+
 
             return svg.node();
         },
