@@ -7,6 +7,12 @@
         this.module.icinga.logger.debug('Clustergraph module loaded');
     };
 
+    function rgbToHex(rgb) {
+        const [, r, g, b] = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        const toHex = (n) => ('0' + parseInt(n).toString(16)).slice(-2);
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+
     Clustergraph.prototype = {
 
         initialize: function () {
@@ -14,6 +20,7 @@
         },
 
         chart: function (data) {
+            const textColor = rgbToHex(getComputedStyle(document.getElementById("navigation")).getPropertyValue('color').trim()) || "#535353";
             const root = d3.hierarchy(data);
             const nodeWidth = 55; // dx value
             const width = 1720;
@@ -66,7 +73,7 @@
                 .attr("dy", "0.30em")
                 .attr("x", d => d.children ? -8 : 8)
                 .attr("text-anchor", d => d.children ? "end" : "start")
-                .attr("fill", d => (d.data.endpoints && d.data.endpoints.length > 0) ? "#ffffff" : "#ff33ff")
+                .attr("fill", d => (d.data.endpoints && d.data.endpoints.length > 0) ? textColor : "#ff33ff")
                 .attr("font-weight", "bold")
                 .text(d => "zone: " + d.data.name);
 
