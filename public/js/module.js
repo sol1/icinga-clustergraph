@@ -25,11 +25,13 @@
             const nodeWidth = 55; // dx value
             const width = 1720;
             const nodeHeight = width / (root.height + 1.2); // dy value
-            const padding = 80;
+            const padding = 80; // for the text to fit
             const tree = d3.tree().nodeSize([nodeWidth, nodeHeight]);
             root.sort((a, b) => d3.ascending(a.data.name, b.data.name));
             tree(root);
 
+            // x0 -> x1 is the minimum x and maximum x of the nodes of the tree
+            // tree is sideways so x is vertical / height and nodeWidth is also vertical etc.
             let x0 = Infinity;
             let x1 = -x0;
             root.each(d => {
@@ -42,7 +44,7 @@
             const svg = d3.create("svg")
                 .attr("width", width)
                 .attr("height", height)
-                .attr("viewBox", [-nodeHeight / 3 - padding, x0 - nodeWidth + (padding * 1.8), width + padding + padding, height])
+                .attr("viewBox", [-nodeHeight / 3 - padding, x0 - nodeWidth, width + padding, height + padding])
                 .attr("style", "max-width: 100%; height: auto; font: 18px sans-serif;");
 
             const link = svg.append("g")
