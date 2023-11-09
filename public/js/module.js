@@ -68,8 +68,8 @@
                 .attr("transform", d => `translate(${d.y},${d.x})`);
 
             node.append("circle")
-                .attr("fill", d => d.children ? "#555" : "#999")
-                .attr("r", 2);
+                .attr("fill", "#999")
+                .attr("r", 3.14);
 
             node.append("text")
                 .attr("dy", "0.30em")
