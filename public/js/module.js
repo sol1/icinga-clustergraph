@@ -81,10 +81,9 @@
 
             // Append endpoint text below the zone name
             let endpointNode = node.append("text")
-                .attr("dy", "1.45em")
-                .attr("x", d => d.children ? -8 : 8)
+                .attr("transform", d => `translate(${d.children ? -16 : 0},0)`)
                 .attr("text-anchor", d => d.children ? "end" : "start")
-                .attr("fill", "#dbdbdb");
+                .attr("x", d => d.children ? -8 : 8)
 
             endpointNode.each(function (nodeData, i) {
                 // If there are endpoints, bind them to the tspan elements
