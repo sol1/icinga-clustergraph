@@ -56,7 +56,7 @@ class IndexController extends Controller
 
         $api = new IcingaApi();
         $zones = $api->sendCommand('GET', 'objects/zones');
-        $hosts = $api->sendCommand('GET', 'objects/hosts');
+        $hosts = $api->sendCommand('GET', 'objects/hosts?attrs=name&attrs=display_name&attrs=state');
 
         if (!is_array($zones)) {
             throw new \Exception("Failed to fetch or decode data from the Icinga2 API.");

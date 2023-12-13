@@ -1,5 +1,5 @@
 Module: clustergraph
-Version: 1.0.5
+Version: 1.0.7
   Libraries: icinga-php-library (>=0.11.0)
 Description: Visual representation of Icinga Clusters
 
