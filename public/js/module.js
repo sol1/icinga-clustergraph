@@ -88,20 +88,32 @@
             endpointNode.each(function (nodeData, i) {
                 // If there are endpoints, bind them to the tspan elements
                 if (nodeData.data.endpoints && nodeData.data.endpoints.length) {
-                    d3.select(this)
+                    endpoint = d3.select(this)
                         .selectAll("tspan")
                         .data(nodeData.data.endpoints)
-                        .enter()
-                        .append("tspan")
-                        .attr("x", nodeData => nodeData.children ? -8 : 8)
-                        .attr("dy", (endpointData, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
-                        .attr("fill", endpointData => {
-                            return endpointData.last_check <= 0 ? "#77aaff" :  // Pending
-                                endpointData.state === 0 ? "#44bb77" : // Up
-                                endpointData.state === 1 ? "#ff5566" : // Down
-                                "#dbdbdb"; // default white color
-                        })
-                        .text(endpointData => endpointData.name);
+                        .enter();
+
+                        endpoint.each(function(endpointData) {
+                            var endpointSelection = d3.select(this);
+                    
+                            // Check the condition based on endpointData.name
+                            if (shouldUseAnchorTag(endpointData.name)) {
+                                endpointSelection = endpointSelection
+                                    .append("a")
+                                    .attr("xlink:href", endpointData.link);
+                            }
+                
+                            endpointSelection.append("tspan")
+                                .attr("x", nodeData => nodeData.children ? -8 : 8)
+                                .attr("dy", (endpointData, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
+                                .attr("fill", endpointData => {
+                                    return endpointData.last_check <= 0 ? "#77aaff" :  // Pending
+                                        endpointData.state === 0 ? "#44bb77" : // Up
+                                        endpointData.state === 1 ? "#ff5566" : // Down
+                                        "#dbdbdb"; // default white color
+                                })
+                                .text(endpointData => endpointData.name);
+                        });
                 }
             });
 
