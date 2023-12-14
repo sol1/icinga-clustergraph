@@ -78,7 +78,7 @@ class IndexController extends Controller
                 foreach ($hosts as $host) {
                     if (($endpoint == $host['name']) || ($endpoint == $host['attrs']['display_name'])) {
                         $endpointData['state'] = $host['attrs']['state'];
-                        $endpointData['link'] = $ICINGAWEB_HOST_PATH . urlencode($host['name']);
+                        $endpointData['link'] = $ICINGAWEB_HOST_PATH . rawurlencode($host['name']);
                         break;
                     }
                 }
