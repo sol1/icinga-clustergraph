@@ -74,11 +74,11 @@ class IndexController extends Controller
             $zoneName = $zone['name'];
             $endpoints = [];
             foreach ($zone['attrs']['endpoints'] ?? [] as $endpoint) {
-                $endpointData = ['name' => $endpoint, 'link' => 'search?q=' + $endpoint];
+                $endpointData = ['name' => $endpoint, 'link' => 'search?q=' . $endpoint];
                 foreach ($hosts as $host) {
                     if (($endpoint == $host['name']) || ($endpoint == $host['attrs']['display_name'])) {
                         $endpointData['state'] = $host['attrs']['state'];
-                        $endpointData['link'] = $ICINGAWEB_HOST_PATH + urlencode($host['name']);
+                        $endpointData['link'] = $ICINGAWEB_HOST_PATH . urlencode($host['name']);
                         break;
                     }
                 }
