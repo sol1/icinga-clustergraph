@@ -52,6 +52,18 @@ class ModuleconfigForm extends ConfigForm
             'required' => true,
         ]);
 
+        $this->addElement('select', 'graph_ui', [
+            'label' => 'Web UI',
+            'description' => 'Select your perferred web interface',
+            'multiOptions' => [
+                'icingaweb2' => 'Icingaweb2',
+                'icingadb' => 'Icingadb Web',
+                // Add more options as needed
+            ],
+            'value' => 'icingaweb2',
+            'required' => true,
+        ]);
+
     }
 
     public function onRequest()
@@ -70,15 +82,15 @@ class ModuleconfigForm extends ConfigForm
     public function getValues($suppressArrayNotation = false)
     {
         $values = parent::getValues($suppressArrayNotation);
-        $resource = "api";
-        if ($resource !== null && $this->config->hasSection($resource)) {
+        $apiResource = "api";
+        if ($apiResource !== null && $this->config->hasSection($apiResource)) {
 
-            $resourceConfig = $this->config->getSection($resource)->toArray();
+            $resourceConfig = $this->config->getSection($apiResource)->toArray();
 
             foreach ($this->getElements() as $element) {
                 if ($element->getType() === 'Zend_Form_Element_Password') {
                     $name = $element->getName();
-                    $name2 = str_replace($resource . "_", "", $name);
+                    $name2 = str_replace($apiResource . "_", "", $name);
 
                     if (isset($values[$name]) && $values[$name] === static::$dummyPassword) {
                         if (isset($resourceConfig[$name2])) {
@@ -88,6 +100,19 @@ class ModuleconfigForm extends ConfigForm
                         }
 
                     }
+                }
+            }
+        }
+        $graphResource = "graph";
+        if ($graphResource !== null && $this->config->hasSection($graphResource)) {
+            $graphConfig = $this->config->getSection($graphResource)->toArray();
+            $name = $element->getName();
+            $name2 = str_replace($graphResource . "_", "", $name);
+            if (isset($values[$name])) {
+                if (isset($graphConfig[$name2])) {
+                    $values[$name] = $graphConfig[$name2];
+                } else {
+                    unset($values[$name]);
                 }
             }
         }

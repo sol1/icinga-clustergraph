@@ -47,7 +47,14 @@ class IndexController extends Controller
         $ICINGA_API_ENDPOINT = $config->get('api', 'host');
         $ICINGA_API_USER = $config->get('api', 'username');
         $ICINGA_API_PASSWORD = $config->get('api', 'password');
+        $ICINGAWEB_TYPE = $config->get('graph', 'ui');
 
+        if ($ICINGAWEB_TYPE == 'icingaweb2') {
+            $ICINGAWEB_HOST_PATH = 'monitoring/host/show?host=';
+        } elseif ($ICINGAWEB_TYPE == 'icingadb') {
+            $ICINGAWEB_HOST_PATH = 'icingadb/host?name=';  
+        }
+        
 
         if (!$ICINGA_API_ENDPOINT || !$ICINGA_API_USER || !$ICINGA_API_PASSWORD) {
             throw new \Exception("Please configure the module in module settings.");
@@ -67,10 +74,11 @@ class IndexController extends Controller
             $zoneName = $zone['name'];
             $endpoints = [];
             foreach ($zone['attrs']['endpoints'] ?? [] as $endpoint) {
-                $endpointData = ['name' => $endpoint];
+                $endpointData = ['name' => $endpoint, 'link' => 'search?q=' . $endpoint];
                 foreach ($hosts as $host) {
                     if (($endpoint == $host['name']) || ($endpoint == $host['attrs']['display_name'])) {
                         $endpointData['state'] = $host['attrs']['state'];
+                        $endpointData['link'] = $ICINGAWEB_HOST_PATH . rawurlencode($host['name']);
                         break;
                     }
                 }
