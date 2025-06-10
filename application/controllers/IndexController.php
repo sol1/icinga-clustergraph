@@ -48,11 +48,12 @@ class IndexController extends Controller
         $ICINGA_API_USER = $config->get('api', 'username');
         $ICINGA_API_PASSWORD = $config->get('api', 'password');
         $ICINGAWEB_TYPE = $config->get('graph', 'ui');
-
+        
+        $ICINGAWEB_BASEURL = Icinga::app()->getRequest()->getBaseUrl() . '/';
         if ($ICINGAWEB_TYPE == 'icingaweb2') {
-            $ICINGAWEB_HOST_PATH = 'monitoring/host/show?host=';
+            $ICINGAWEB_HOST_PATH = $ICINGAWEB_BASEURL . 'monitoring/host/show?host=';
         } elseif ($ICINGAWEB_TYPE == 'icingadb') {
-            $ICINGAWEB_HOST_PATH = 'icingadb/host?name=';  
+            $ICINGAWEB_HOST_PATH = $ICINGAWEB_BASEURL . 'icingadb/host?name=';  
         }
         
 
