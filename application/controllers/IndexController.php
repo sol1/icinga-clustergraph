@@ -64,7 +64,15 @@ class IndexController extends Controller
 
         $api = new IcingaApi();
         $zones = $api->sendCommand('GET', 'objects/zones');
-        $hosts = $api->sendCommand('GET', 'objects/hosts?attrs=name&attrs=display_name&attrs=state');
+        // Only consider hosts that are members of the "synthetic" host group
+        $hostFilter = rawurlencode('"synthetic" in host.groups');
+        $hosts = $api->sendCommand(
+            'GET',
+            'objects/hosts?attrs=name&attrs=display_name&attrs=state&filter=' . $hostFilter
+        );
+        if (!is_array($hosts)) {
+            $hosts = [];
+        }
 
         if (!is_array($zones)) {
             throw new \Exception("Failed to fetch or decode data from the Icinga2 API.");
@@ -75,15 +83,21 @@ class IndexController extends Controller
             $zoneName = $zone['name'];
             $endpoints = [];
             foreach ($zone['attrs']['endpoints'] ?? [] as $endpoint) {
-                $endpointData = ['name' => $endpoint, 'link' => 'search?q=' . $endpoint];
+                $endpointData = null;
                 foreach ($hosts as $host) {
                     if (($endpoint == $host['name']) || ($endpoint == $host['attrs']['display_name'])) {
-                        $endpointData['state'] = $host['attrs']['state'];
-                        $endpointData['link'] = $ICINGAWEB_HOST_PATH . rawurlencode($host['name']);
+                        $endpointData = [
+                            'name'  => $endpoint,
+                            'state' => $host['attrs']['state'],
+                            'link'  => $ICINGAWEB_HOST_PATH . rawurlencode($host['name'])
+                        ];
                         break;
                     }
                 }
-                $endpoints[] = $endpointData;
+                // Skip endpoints that are not hosts in the "synthetic" host group
+                if ($endpointData !== null) {
+                    $endpoints[] = $endpointData;
+                }
             }
             $nodes[$zoneName] = [
                 'name' => $zoneName,
@@ -112,7 +126,31 @@ class IndexController extends Controller
 
         $tree = $nodes[$rootZoneName];
 
+        // Drop zones that contain no synthetic hosts, either directly or
+        // in any descendant zone. The root zone is always kept.
+        $tree['children'] = $this->pruneZones($tree['children']);
+
         $this->_helper->json($tree);
+    }
+
+    /**
+     * Recursively remove zones that have no endpoints and no remaining children
+     *
+     * @param array $zones
+     *
+     * @return array
+     */
+    protected function pruneZones(array $zones)
+    {
+        $kept = [];
+        foreach ($zones as $zone) {
+            $zone['children'] = $this->pruneZones($zone['children']);
+            if (!empty($zone['endpoints']) || !empty($zone['children'])) {
+                $kept[] = $zone;
+            }
+        }
+
+        return $kept;
     }
 
 
