@@ -29,7 +29,7 @@ class ModuleconfigForm extends ConfigForm
 
         $this->addElement('text', 'api_username', [
             'label' => 'API User',
-            'description' => 'Add a user in api-users.conf with these permissions:  permissions = [ "objects/query/Zone", "objects/query/Endpoint" ]',
+            'description' => 'Add a user in api-users.conf with these permissions:  permissions = [ "objects/query/Host", "objects/query/Dependency" ]',
             'required' => true,
         ]);
 

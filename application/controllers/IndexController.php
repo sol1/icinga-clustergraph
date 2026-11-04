@@ -63,94 +63,74 @@ class IndexController extends Controller
 
 
         $api = new IcingaApi();
-        $zones = $api->sendCommand('GET', 'objects/zones');
-        // Only consider hosts that are members of the "synthetic" host group
-        $hostFilter = rawurlencode('"synthetic" in host.groups');
         $hosts = $api->sendCommand(
             'GET',
-            'objects/hosts?attrs=name&attrs=display_name&attrs=state&filter=' . $hostFilter
+            'objects/hosts?attrs=name&attrs=display_name&attrs=state&attrs=last_check&attrs=groups&attrs=zone'
         );
-        if (!is_array($hosts)) {
-            $hosts = [];
-        }
+        $dependencies = $api->sendCommand(
+            'GET',
+            'objects/dependencies?attrs=parent_host_name&attrs=child_host_name&attrs=child_service_name'
+        );
 
-        if (!is_array($zones)) {
+        if (!is_array($hosts) || !is_array($dependencies)) {
             throw new \Exception("Failed to fetch or decode data from the Icinga2 API.");
         }
 
-        $nodes = [];
-        foreach ($zones as $zone) {
-            $zoneName = $zone['name'];
-            $endpoints = [];
-            foreach ($zone['attrs']['endpoints'] ?? [] as $endpoint) {
-                $endpointData = null;
-                foreach ($hosts as $host) {
-                    if (($endpoint == $host['name']) || ($endpoint == $host['attrs']['display_name'])) {
-                        $endpointData = [
-                            'name'  => $endpoint,
-                            'state' => $host['attrs']['state'],
-                            'link'  => $ICINGAWEB_HOST_PATH . rawurlencode($host['name'])
-                        ];
-                        break;
-                    }
-                }
-                // Skip endpoints that are not hosts in the "synthetic" host group
-                if ($endpointData !== null) {
-                    $endpoints[] = $endpointData;
-                }
+        $hostsByName = [];
+        $synthetic = [];
+        foreach ($hosts as $host) {
+            $hostsByName[$host['name']] = $host;
+            if (in_array('synthetic', $host['attrs']['groups'] ?? [], true)) {
+                $synthetic[$host['name']] = true;
             }
-            $nodes[$zoneName] = [
-                'name' => $zoneName,
-                'children' => [],
-                'endpoints' => $endpoints
+        }
+
+        // Host-to-host edges (parent -> child) that touch at least one synthetic
+        // host. Service dependencies (child_service_name set) are ignored.
+        $links = [];
+        foreach ($dependencies as $dependency) {
+            $attrs = $dependency['attrs'];
+            if (!empty($attrs['child_service_name'])) {
+                continue;
+            }
+            $parent = $attrs['parent_host_name'] ?? '';
+            $child = $attrs['child_host_name'] ?? '';
+            if ($parent === '' || $child === '' || $parent === $child) {
+                continue;
+            }
+            if (!isset($synthetic[$parent]) && !isset($synthetic[$child])) {
+                continue;
+            }
+            $links[$parent . "\0" . $child] = ['source' => $parent, 'target' => $child];
+        }
+
+        // Nodes: every synthetic host, plus any direct parent or child outside
+        // the group so the relationship stays visible.
+        $nodeNames = $synthetic;
+        foreach ($links as $link) {
+            $nodeNames[$link['source']] = true;
+            $nodeNames[$link['target']] = true;
+        }
+
+        $nodes = [];
+        foreach (array_keys($nodeNames) as $name) {
+            $name = (string) $name; // PHP turns numeric string keys into ints
+            $host = $hostsByName[$name] ?? null;
+            $nodes[] = [
+                'name'       => $name,
+                'label'      => $host['attrs']['display_name'] ?? $name,
+                'state'      => $host['attrs']['state'] ?? null,
+                'last_check' => $host['attrs']['last_check'] ?? null,
+                'zone'       => $host['attrs']['zone'] ?? null,
+                'synthetic'  => isset($synthetic[$name]),
+                'link'       => $ICINGAWEB_HOST_PATH . rawurlencode($name)
             ];
         }
 
-
-        foreach ($zones as $zone) {
-            $zoneName = $zone['name'];
-            $parentName = $zone['attrs']['parent'];
-            if ($parentName && isset($nodes[$parentName])) {
-                $nodes[$parentName]['children'][] = &$nodes[$zoneName];
-            }
-        }
-
-        // Find root node
-        $rootZoneName = '';
-        foreach ($zones as $zone) {
-            if (!$zone['attrs']['parent'] && !$zone['attrs']['global']) {
-                $rootZoneName = $zone['name'];
-                break;
-            }
-        }
-
-        $tree = $nodes[$rootZoneName];
-
-        // Drop zones that contain no synthetic hosts, either directly or
-        // in any descendant zone. The root zone is always kept.
-        $tree['children'] = $this->pruneZones($tree['children']);
-
-        $this->_helper->json($tree);
-    }
-
-    /**
-     * Recursively remove zones that have no endpoints and no remaining children
-     *
-     * @param array $zones
-     *
-     * @return array
-     */
-    protected function pruneZones(array $zones)
-    {
-        $kept = [];
-        foreach ($zones as $zone) {
-            $zone['children'] = $this->pruneZones($zone['children']);
-            if (!empty($zone['endpoints']) || !empty($zone['children'])) {
-                $kept[] = $zone;
-            }
-        }
-
-        return $kept;
+        $this->_helper->json([
+            'nodes' => $nodes,
+            'links' => array_values($links)
+        ]);
     }
 
 

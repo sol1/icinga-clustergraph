@@ -8,9 +8,98 @@
     };
 
     function rgbToHex(rgb) {
-        const [, r, g, b] = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        const match = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (!match) {
+            return null;
+        }
         const toHex = (n) => ('0' + parseInt(n).toString(16)).slice(-2);
-        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        return `#${toHex(match[1])}${toHex(match[2])}${toHex(match[3])}`;
+    }
+
+    function stateColor(node) {
+        if (node.state === null || node.state === undefined) return "#dbdbdb"; // unknown host
+        if (!node.last_check || node.last_check <= 0) return "#77aaff";        // Pending
+        if (node.state === 0) return "#44bb77";                                // Up
+        if (node.state === 1) return "#ff5566";                                // Down
+        return "#dbdbdb";
+    }
+
+    function stateName(node) {
+        if (node.state === null || node.state === undefined) return "unknown";
+        if (!node.last_check || node.last_check <= 0) return "pending";
+        return node.state === 0 ? "up" : "down";
+    }
+
+    /**
+     * Lay out a directed acyclic graph in columns (parents left, children right).
+     *
+     * Each node's column is the length of the longest parent chain above it, so a
+     * host with several parents always sits to the right of all of them. Rows are
+     * ordered with a few barycenter sweeps to reduce crossing edges.
+     */
+    function layout(nodes, links) {
+        const byName = new Map(nodes.map(n => [n.name, n]));
+        const parents = new Map(nodes.map(n => [n.name, []]));
+        const children = new Map(nodes.map(n => [n.name, []]));
+        const indegree = new Map(nodes.map(n => [n.name, 0]));
+
+        links.forEach(l => {
+            if (!byName.has(l.source) || !byName.has(l.target)) return;
+            children.get(l.source).push(l.target);
+            parents.get(l.target).push(l.source);
+            indegree.set(l.target, indegree.get(l.target) + 1);
+        });
+
+        // Longest-path layering via Kahn's topological sort
+        const layer = new Map(nodes.map(n => [n.name, 0]));
+        const queue = nodes.filter(n => indegree.get(n.name) === 0).map(n => n.name);
+        const seen = new Set();
+        while (queue.length) {
+            const name = queue.shift();
+            seen.add(name);
+            children.get(name).forEach(child => {
+                layer.set(child, Math.max(layer.get(child), layer.get(name) + 1));
+                indegree.set(child, indegree.get(child) - 1);
+                if (indegree.get(child) === 0) queue.push(child);
+            });
+        }
+        // Icinga rejects dependency cycles, but don't hang or drop nodes if one slips through
+        nodes.forEach(n => {
+            if (!seen.has(n.name)) {
+                const maxParent = Math.max(-1, ...parents.get(n.name).filter(p => seen.has(p)).map(p => layer.get(p)));
+                layer.set(n.name, maxParent + 1);
+            }
+        });
+
+        const layerCount = Math.max(0, ...layer.values()) + 1;
+        const columns = Array.from({length: layerCount}, () => []);
+        nodes
+            .slice()
+            .sort((a, b) => d3.ascending(a.label, b.label))
+            .forEach(n => columns[layer.get(n.name)].push(n.name));
+
+        const position = new Map();
+        const reindex = () => columns.forEach(col => col.forEach((name, i) => position.set(name, i)));
+        reindex();
+
+        const barycenter = (name, neighbours) => {
+            const list = neighbours.get(name);
+            if (!list.length) return position.get(name);
+            return d3.mean(list, n => position.get(n));
+        };
+
+        for (let sweep = 0; sweep < 4; sweep++) {
+            for (let i = 1; i < layerCount; i++) {
+                columns[i].sort((a, b) => barycenter(a, parents) - barycenter(b, parents));
+                columns[i].forEach((name, idx) => position.set(name, idx));
+            }
+            for (let i = layerCount - 2; i >= 0; i--) {
+                columns[i].sort((a, b) => barycenter(a, children) - barycenter(b, children));
+                columns[i].forEach((name, idx) => position.set(name, idx));
+            }
+        }
+
+        return {columns, layer, position, layerCount};
     }
 
     Clustergraph.prototype = {
@@ -20,105 +109,142 @@
         },
 
         chart: function (data) {
-            const textColor = rgbToHex(getComputedStyle(document.getElementById("navigation")).getPropertyValue('color').trim()) || "#535353";
-            const root = d3.hierarchy(data);
-            const nodeWidth = 55; // dx value
-            const width = 1720;
-            const nodeHeight = width / (root.height + 1.2); // dy value
-            const padding = 80; // for the text to fit
-            const tree = d3.tree().nodeSize([nodeWidth, nodeHeight]);
-            root.sort((a, b) => d3.ascending(a.data.name, b.data.name));
-            tree(root);
+            const navigation = document.getElementById("navigation");
+            const textColor = (navigation && rgbToHex(getComputedStyle(navigation).getPropertyValue('color').trim())) || "#535353";
 
-            // x0 -> x1 is the minimum x and maximum x of the nodes of the tree
-            // tree is sideways so x is vertical / height and nodeWidth is also vertical etc.
-            let x0 = Infinity;
-            let x1 = -x0;
-            root.each(d => {
-                if (d.x > x1) x1 = d.x;
-                if (d.x < x0) x0 = d.x;
+            const nodes = data.nodes || [];
+            const links = data.links || [];
+
+            if (!nodes.length) {
+                const empty = document.createElement('p');
+                empty.textContent = 'No hosts found in the "synthetic" host group.';
+                return empty;
+            }
+
+            const {columns, layer, position, layerCount} = layout(nodes, links);
+
+            const rowHeight = 30;
+            const padding = 20;
+            const labelOffset = 12; // circle centre to start of label
+            const columnGap = 110;  // space left for the edges between columns
+            const maxRows = Math.max(...columns.map(c => c.length));
+
+            // Measure labels so edges can start after the text instead of crossing it
+            const ctx = document.createElement("canvas").getContext("2d");
+            const labelWidth = new Map(nodes.map(n => {
+                ctx.font = (n.synthetic ? "bold" : "italic") + " 14px sans-serif";
+                return [n.name, ctx.measureText(n.label).width];
+            }));
+
+            // Each column is as wide as its longest label plus the gap for edges
+            const columnX = [];
+            let x = padding;
+            columns.forEach(col => {
+                columnX.push(x);
+                x += labelOffset + Math.max(0, ...col.map(name => labelWidth.get(name))) + columnGap;
             });
 
-            const height = x1 - x0 + nodeWidth * 2;
+            // Centre each column vertically against the tallest one
+            const point = name => {
+                const col = layer.get(name);
+                const offset = (maxRows - columns[col].length) * rowHeight / 2;
+                return {
+                    x: columnX[col],
+                    y: padding + offset + position.get(name) * rowHeight
+                };
+            };
+            const edgeStart = name => {
+                const p = point(name);
+                return {x: p.x + labelOffset + labelWidth.get(name) + 6, y: p.y};
+            };
+
+            const width = x - columnGap + padding;
+            const height = padding * 2 + (maxRows - 1) * rowHeight + 10;
 
             const svg = d3.create("svg")
                 .attr("width", width)
                 .attr("height", height)
-                .attr("viewBox", [-nodeHeight / 3 - padding, x0 - nodeWidth, width + padding, height + padding])
-                .attr("style", "max-width: 100%; height: auto; font: 18px sans-serif;");
+                .attr("viewBox", [0, 0, width, height])
+                .attr("style", "max-width: 100%; height: auto; font: 14px sans-serif;");
 
-            const link = svg.append("g")
+            svg.append("defs").append("marker")
+                .attr("id", "clustergraph-arrow")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 14)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "#00c3ed");
+
+            const nodeNames = new Set(nodes.map(n => n.name));
+            const drawnLinks = links.filter(l => nodeNames.has(l.source) && nodeNames.has(l.target));
+
+            svg.append("g")
                 .attr("fill", "none")
                 .attr("stroke", "#00c3ed")
-                .attr("stroke-opacity", 0.4)
-                .attr("stroke-width", 2.5)
-                .selectAll()
-                .data(root.links())
+                .attr("stroke-opacity", 0.5)
+                .attr("stroke-width", 2)
+                .selectAll("path")
+                .data(drawnLinks)
                 .join("path")
+                .attr("marker-end", "url(#clustergraph-arrow)")
                 .attr("d", d3.linkHorizontal()
-                    .x(d => d.y)
-                    .y(d => d.x));
+                    .source(l => edgeStart(l.source))
+                    .target(l => point(l.target))
+                    .x(p => p.x)
+                    .y(p => p.y));
 
             const node = svg.append("g")
-                .attr("stroke-linejoin", "round")
-                .attr("stroke-width", 3)
-                .selectAll()
-                .data(root.descendants())
-                .join("g")
-                .attr("transform", d => `translate(${d.y},${d.x})`);
+                .selectAll("a")
+                .data(nodes)
+                .join("a")
+                .attr("href", d => d.link)
+                .attr("transform", d => {
+                    const p = point(d.name);
+                    return `translate(${p.x},${p.y})`;
+                });
+
+            node.append("title")
+                .text(d => [
+                    d.name,
+                    "state: " + stateName(d),
+                    d.zone ? "zone: " + d.zone : null,
+                    d.synthetic ? null : "not in the synthetic host group"
+                ].filter(Boolean).join("\n"));
 
             node.append("circle")
-                .attr("fill", "#999")
-                .attr("r", 3.14);
+                .attr("r", 6)
+                .attr("fill", d => stateColor(d))
+                .attr("stroke", d => d.synthetic ? "none" : textColor)
+                .attr("stroke-dasharray", "2,2");
 
             node.append("text")
-                .attr("dy", "0.30em")
-                .attr("x", d => d.children ? -8 : 8)
-                .attr("text-anchor", d => d.children ? "end" : "start")
-                .attr("fill", d => (d.data.endpoints && d.data.endpoints.length > 0) ? textColor : "#ff33ff")
-                .attr("font-weight", "bold")
-                .text(d => "zone: " + d.data.name);
-
-            // Append endpoint text below the zone name
-            let endpointNode = node.append("text")
-                .attr("transform", d => `translate(${d.children ? -16 : 0},0)`)
-                .attr("text-anchor", d => d.children ? "end" : "start")
-                .attr("x", d => d.children ? -8 : 8)
-
-            endpointNode.each(function (nodeData, i) {
-                // If there are endpoints, bind them to the tspan elements
-                if (nodeData.data.endpoints && nodeData.data.endpoints.length) {
-                    d3.select(this)
-                        .selectAll("tspan")
-                        .data(nodeData.data.endpoints)
-                        .enter()
-                        .append("a")
-                        .attr("xlink:href", endpointData => endpointData.link)
-                        .append("tspan")
-                        .attr("x", nodeData => nodeData.children ? -8 : 8)
-                        .attr("dy", (endpointData, i) => i === 0 ? "1.45em" : "1em") // Only add spacing after the first tspan
-                        .attr("fill", endpointData => {
-                            return endpointData.last_check <= 0 ? "#77aaff" :  // Pending
-                                endpointData.state === 0 ? "#44bb77" : // Up
-                                endpointData.state === 1 ? "#ff5566" : // Down
-                                "#dbdbdb"; // default white color
-                        })
-                        .text(endpointData => endpointData.name);
-                }
-            });
-
+                .attr("x", labelOffset)
+                .attr("dy", "0.32em")
+                .attr("fill", d => d.synthetic ? stateColor(d) : textColor)
+                .attr("opacity", d => d.synthetic ? 1 : 0.6)
+                .attr("font-weight", d => d.synthetic ? "bold" : "normal")
+                .attr("font-style", d => d.synthetic ? "normal" : "italic")
+                .text(d => d.label);
 
             return svg.node();
         },
 
 
         onRenderedContainer: function (event) {
-            // in module configuration we don't have a map, so return peacefully
+            const container = document.getElementById('clustergraph-container');
+            // in module configuration we don't have a graph, so return peacefully
+            if (!container) {
+                return;
+            }
 
             fetch(window.location.pathname + "/index/data")
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('clustergraph-container').append(this.chart(data));
+                    container.replaceChildren(this.chart(data));
                 });
 
 
