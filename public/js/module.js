@@ -125,24 +125,27 @@
 
             const rowHeight = 30;
             const padding = 20;
-            const labelOffset = 12; // circle centre to start of label
+            const labelOffset = 12; // circle centre to the end of its label (labels sit left of the dot)
             const columnGap = 110;  // space left for the edges between columns
             const maxRows = Math.max(...columns.map(c => c.length));
 
-            // Measure labels so edges can start after the text instead of crossing it
+            // Measure labels so each column leaves room for its text
             const ctx = document.createElement("canvas").getContext("2d");
             const labelWidth = new Map(nodes.map(n => {
                 ctx.font = (n.synthetic ? "bold" : "italic") + " 14px sans-serif";
                 return [n.name, ctx.measureText(n.label).width];
             }));
 
-            // Each column is as wide as its longest label plus the gap for edges
-            const columnX = [];
+            // Children on the left, parents on the right: lay columns out from the
+            // deepest layer to layer 0. Each column is as wide as its longest label
+            // (drawn left of the dot) plus the gap for edges.
+            const columnX = new Array(layerCount);
             let x = padding;
-            columns.forEach(col => {
-                columnX.push(x);
-                x += labelOffset + Math.max(0, ...col.map(name => labelWidth.get(name))) + columnGap;
-            });
+            for (let col = layerCount - 1; col >= 0; col--) {
+                x += Math.max(0, ...columns[col].map(name => labelWidth.get(name))) + labelOffset;
+                columnX[col] = x;
+                x += columnGap;
+            }
 
             // Centre each column vertically against the tallest one
             const point = name => {
@@ -153,9 +156,11 @@
                     y: padding + offset + position.get(name) * rowHeight
                 };
             };
+            // Edges leave from the far (left) end of the parent's label and run left
+            // into the child's dot from the right, so they never cross a label.
             const edgeStart = name => {
                 const p = point(name);
-                return {x: p.x + labelOffset + labelWidth.get(name) + 6, y: p.y};
+                return {x: p.x - labelOffset - labelWidth.get(name) - 6, y: p.y};
             };
 
             const width = x - columnGap + padding;
@@ -222,8 +227,9 @@
                 .attr("stroke-dasharray", "2,2");
 
             node.append("text")
-                .attr("x", labelOffset)
+                .attr("x", -labelOffset)
                 .attr("dy", "0.32em")
+                .attr("text-anchor", "end")
                 .attr("fill", d => d.synthetic ? stateColor(d) : textColor)
                 .attr("opacity", d => d.synthetic ? 1 : 0.6)
                 .attr("font-weight", d => d.synthetic ? "bold" : "normal")
